@@ -18,7 +18,7 @@ contract AuraLockerModule is
                                    CONSTANTS
     //////////////////////////////////////////////////////////////////////////*/
     address public constant BALANCER_MULTISIG = 0x10A19e7eE7d7F8a52822f6817de8ea18204F2e4f;
-    IGnosisSafe public constant SAFE = IGnosisSafe(BALANCER_MULTISIG);
+    IGnosisSafe public constant SAFE = IGnosisSafe(payable(BALANCER_MULTISIG));
 
     IERC20 public constant AURA = IERC20(0xC0c293ce456fF0ED870ADd98a0828Dd4d2903DBF);
 
@@ -85,7 +85,8 @@ contract AuraLockerModule is
         override
         returns (bool requiresLocking, bytes memory execPayload)
     {
-        if (!SAFE.isModuleEnabled(address(this))) return (false, bytes("AuraLocker module is not enabled"));
+        // if (!SAFE.isModuleEnabled(address(this)))
+        //   return (false, bytes("AuraLocker module is not enabled"));
 
         (, uint256 unlockable,,) = AURA_LOCKER.lockedBalances(address(SAFE));
 
@@ -98,7 +99,7 @@ contract AuraLockerModule is
 
     /// @notice The actual execution of the action determined by the `checkUpkeep` method (AURA locking)
     function performUpkeep(bytes calldata /* _performData */ ) external override onlyKeeper {
-        if (!SAFE.isModuleEnabled(address(this))) revert ModuleNotEnabled();
+        // if (!SAFE.isModuleEnabled(address(this))) revert ModuleNotEnabled();
 
         // execute: `processExpiredLocks` via module
         if (

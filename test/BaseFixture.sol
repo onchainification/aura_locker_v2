@@ -18,7 +18,7 @@ contract BaseFixture is Test {
     // https://debank.com/profile/0x9ff471F9f98F42E5151C7855fD1b5aa906b1AF7e
     address constant BALANCER_ADMIN_CHAINLINK_UPKEEPS = 0x9ff471F9f98F42E5151C7855fD1b5aa906b1AF7e;
 
-    IGnosisSafe public constant SAFE = IGnosisSafe(0x10A19e7eE7d7F8a52822f6817de8ea18204F2e4f);
+    IGnosisSafe public constant SAFE = IGnosisSafe(payable(0x10A19e7eE7d7F8a52822f6817de8ea18204F2e4f));
 
     // https://docs.chain.link/resources/link-token-contracts?parent=automation#ethereum-mainnet
     IERC20 constant LINK = IERC20(0x514910771AF9Ca656af840dff83E8264EcF986CA);
