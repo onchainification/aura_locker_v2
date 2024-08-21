@@ -25,6 +25,7 @@ contract AuraLockerModuleTest is BaseFixture {
 
     function test_revertWhen_ModuleNotEnabled() public {
         // `disableModule(address prevModule, address module)`
+        vm.prank(address(SAFE));
         SAFE.disableModule(address(1), address(auraLockerModule));
         // assertFalse(SAFE.isModuleEnabled(address(auraLockerModule)));
     }
