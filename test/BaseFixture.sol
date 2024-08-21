@@ -60,10 +60,11 @@ contract BaseFixture is Test {
         uint256 upkeepId = CL_REGISTRAR.registerUpkeep(registrationParams);
         address keeper = CL_REGISTRY.getForwarder(upkeepId);
         assertNotEq(keeper, address(0));
+        vm.stopPrank();
 
+        vm.prank(address(SAFE));
         auraLockerModule.setKeeper(keeper);
         assertEq(auraLockerModule.keeper(), keeper);
-        vm.stopPrank();
 
         _labelKeyContracts();
     }
