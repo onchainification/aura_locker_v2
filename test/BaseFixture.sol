@@ -40,7 +40,6 @@ contract BaseFixture is Test {
         // enable module
         vm.prank(address(SAFE));
         SAFE.enableModule(address(auraLockerModule));
-        // assertTrue(SAFE.isModuleEnabled(address(auraLockerModule)));
 
         // register chainlink task
         vm.startPrank(BALANCER_ADMIN_CHAINLINK_UPKEEPS);
