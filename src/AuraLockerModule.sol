@@ -10,7 +10,7 @@ import {ILockAura} from "./interfaces/aura/ILockAura.sol";
 
 /// @title AuraLockerModule
 /// @author Onchainification Labs
-/// @notice The module handles the locking of AURA tokens for the multisig in an automated manner.
+/// @notice The module handles the locking of AURA tokens for the multisig in a fully automated manner
 contract AuraLockerModule is
     KeeperCompatibleInterface // 1 inherited component
 {
@@ -87,7 +87,7 @@ contract AuraLockerModule is
 
     /// @notice Check if AURA holding are unlocked and lock them if needed
     /// @return requiresLocking True if there is a need to lock AURA tokens
-    /// @return execPayload The payload of the needed transaction
+    /// @return execPayload The payload of the locking transaction
     function checkUpkeep(bytes calldata /* checkData */ )
         external
         view
@@ -102,7 +102,7 @@ contract AuraLockerModule is
             return (true, abi.encodeWithSelector(AURA_LOCKER.processExpiredLocks.selector, true));
         }
 
-        return (false, bytes("No AURA tokens are unlock!"));
+        return (false, bytes("No AURA tokens unlocked"));
     }
 
     /// @notice The actual execution of the action determined by the `checkUpkeep` method (AURA locking)
@@ -120,7 +120,7 @@ contract AuraLockerModule is
         ) revert TxFromModuleFailed();
     }
 
-    /// @dev The Gnosis Safe version 1.1.1 does not expose directly `isModuleEnabled` method, so we need a workaround
+    /// @dev The Gnosis Safe v1.1.1 does not yet have the `isModuleEnabled` method, so we need a workaround
     function _isModuleEnabled() internal view returns (bool) {
         address[] memory modules = SAFE.getModules();
         for (uint256 i = 0; i < modules.length; i++) {
