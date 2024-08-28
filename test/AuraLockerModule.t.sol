@@ -16,7 +16,7 @@ contract AuraLockerModuleTest is BaseFixture {
     }
 
     function test_checkUpkeep_when_LockingIsRequired() public {
-        // move into the future
+        // move to future where tokens are unlocked
         skip(16 weeks);
         (bool requiresLocking, bytes memory execPayload) = auraLockerModule.checkUpkeep(bytes(""));
         assertTrue(requiresLocking);
@@ -32,14 +32,14 @@ contract AuraLockerModuleTest is BaseFixture {
             if (modules[i] == address(auraLockerModule)) assertFalse(true);
         }
 
-        // once module its removed, the keeper trying to call `performUpkeep` should revert
+        // once module is removed, the keeper trying to call `performUpkeep` should revert
         vm.prank(auraLockerModule.keeper());
         vm.expectRevert(abi.encodeWithSelector(AuraLockerModule.ModuleNotEnabled.selector));
         auraLockerModule.performUpkeep(bytes(""));
     }
 
     function testPerformUpkeep_revertWhen_NothingToLock() public {
-        // force a `performUpkeep` when weeks did not go by
+        // force a `performUpkeep` when not enough weeks went by
         skip(1 weeks);
 
         vm.prank(auraLockerModule.keeper());
@@ -48,7 +48,7 @@ contract AuraLockerModuleTest is BaseFixture {
     }
 
     function testPerformUpkeepSuccess() public {
-        // move to future
+        // move to future where tokens are unlocked
         skip(16 weeks);
         (bool requiresLocking,) = auraLockerModule.checkUpkeep(bytes(""));
         assertTrue(requiresLocking);
@@ -58,7 +58,7 @@ contract AuraLockerModuleTest is BaseFixture {
         vm.prank(auraLockerModule.keeper());
         auraLockerModule.performUpkeep(bytes(""));
 
-        // check 2M where locked properly
+        // check if the 2M AURA were locked properly
         (,, uint256 lockedAfterPerformUpkeep,) = AURA_LOCKER.lockedBalances(address(SAFE));
         assertGt(lockedAfterPerformUpkeep, lockedBeforePerformUpkeep);
         assertEq(totalAuraInLocker, lockedAfterPerformUpkeep);
