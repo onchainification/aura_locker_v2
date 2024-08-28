@@ -18,7 +18,7 @@ contract AuraLockerModule is
                                    CONSTANTS
     //////////////////////////////////////////////////////////////////////////*/
     address public constant BALANCER_MULTISIG = 0x10A19e7eE7d7F8a52822f6817de8ea18204F2e4f;
-    IGnosisSafe public constant SAFE = IGnosisSafe(BALANCER_MULTISIG);
+    IGnosisSafe public constant SAFE = IGnosisSafe(payable(BALANCER_MULTISIG));
 
     IERC20 public constant AURA = IERC20(0xC0c293ce456fF0ED870ADd98a0828Dd4d2903DBF);
 
@@ -34,12 +34,15 @@ contract AuraLockerModule is
                                        ERRORS
     //////////////////////////////////////////////////////////////////////////*/
     error NotKeeper(address agent);
+    error NotGovernance(address agent);
 
     error ZeroAddressValue();
 
     error ModuleNotEnabled();
 
     error TxFromModuleFailed();
+
+    error NothingToLock(uint256 timestamp);
 
     /*//////////////////////////////////////////////////////////////////////////
                                        EVENTS
@@ -61,13 +64,19 @@ contract AuraLockerModule is
         _;
     }
 
+    /// @notice Enforce that the function is called by governance only
+    modifier onlyGovernance() {
+        if (msg.sender != BALANCER_MULTISIG) revert NotGovernance(msg.sender);
+        _;
+    }
+
     /*//////////////////////////////////////////////////////////////////////////
                                   EXTERNAL METHODS
     //////////////////////////////////////////////////////////////////////////*/
 
     /// @notice Assigns a new keeper address
     /// @param _keeper The address of the new keeper
-    function setKeeper(address _keeper) external {
+    function setKeeper(address _keeper) external onlyGovernance {
         if (_keeper == address(0)) revert ZeroAddressValue();
 
         address oldKeeper = keeper;
@@ -85,7 +94,7 @@ contract AuraLockerModule is
         override
         returns (bool requiresLocking, bytes memory execPayload)
     {
-        if (!SAFE.isModuleEnabled(address(this))) return (false, bytes("AuraLocker module is not enabled"));
+        if (!_isModuleEnabled()) return (false, bytes("AuraLocker module is not enabled"));
 
         (, uint256 unlockable,,) = AURA_LOCKER.lockedBalances(address(SAFE));
 
@@ -98,7 +107,10 @@ contract AuraLockerModule is
 
     /// @notice The actual execution of the action determined by the `checkUpkeep` method (AURA locking)
     function performUpkeep(bytes calldata /* _performData */ ) external override onlyKeeper {
-        if (!SAFE.isModuleEnabled(address(this))) revert ModuleNotEnabled();
+        if (!_isModuleEnabled()) revert ModuleNotEnabled();
+
+        (, uint256 unlockable,,) = AURA_LOCKER.lockedBalances(address(SAFE));
+        if (unlockable == 0) revert NothingToLock(block.timestamp);
 
         // execute: `processExpiredLocks` via module
         if (
@@ -106,5 +118,14 @@ contract AuraLockerModule is
                 address(AURA_LOCKER), 0, abi.encodeCall(ILockAura.processExpiredLocks, true), IGnosisSafe.Operation.Call
             )
         ) revert TxFromModuleFailed();
+    }
+
+    /// @dev The Gnosis Safe version 1.1.1 does not expose directly `isModuleEnabled` method, so we need a workaround
+    function _isModuleEnabled() internal view returns (bool) {
+        address[] memory modules = SAFE.getModules();
+        for (uint256 i = 0; i < modules.length; i++) {
+            if (modules[i] == address(this)) return true;
+        }
+        return false;
     }
 }
