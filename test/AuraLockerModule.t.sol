@@ -12,7 +12,7 @@ contract AuraLockerModuleTest is BaseFixture {
         // at present nothing to lock
         (bool requiresLocking, bytes memory execPayload) = auraLockerModule.checkUpkeep(bytes(""));
         assertFalse(requiresLocking);
-        assertEq(execPayload, bytes("No AURA tokens are unlock!"));
+        assertEq(execPayload, bytes("No AURA tokens unlocked"));
     }
 
     function test_checkUpkeep_when_LockingIsRequired() public {
