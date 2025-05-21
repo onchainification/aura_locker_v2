@@ -5,7 +5,7 @@ import {IERC20} from "@openzeppelin/token/ERC20/IERC20.sol";
 
 import {KeeperCompatibleInterface} from "@chainlink/automation/interfaces/KeeperCompatibleInterface.sol";
 
-import {IGnosisSafe} from "./interfaces/gnosis/IGnosisSafe.sol";
+import {ISafe} from "./interfaces/gnosis/ISafe.sol";
 import {ILockAura} from "./interfaces/aura/ILockAura.sol";
 
 /// @title AuraLockerModule
@@ -17,8 +17,8 @@ contract AuraLockerModule is
     /*//////////////////////////////////////////////////////////////////////////
                                    CONSTANTS
     //////////////////////////////////////////////////////////////////////////*/
-    address public constant BALANCER_MULTISIG = 0x10A19e7eE7d7F8a52822f6817de8ea18204F2e4f;
-    IGnosisSafe public constant SAFE = IGnosisSafe(payable(BALANCER_MULTISIG));
+    address public constant BALANCER_MULTISIG = 0x9a5BDF08a6969A4bDb7724beE3c6d8964BDc0B28;
+    ISafe public constant SAFE = ISafe(payable(BALANCER_MULTISIG));
 
     IERC20 public constant AURA = IERC20(0xC0c293ce456fF0ED870ADd98a0828Dd4d2903DBF);
 
@@ -94,12 +94,16 @@ contract AuraLockerModule is
         override
         returns (bool requiresLocking, bytes memory execPayload)
     {
-        if (!_isModuleEnabled()) return (false, bytes("AuraLocker module is not enabled"));
+        if (!SAFE.isModuleEnabled(address(this))) return (false, bytes("AuraLocker module is not enabled"));
 
-        (, uint256 unlockable,,) = AURA_LOCKER.lockedBalances(address(SAFE));
-
-        if (unlockable > 0) {
+        (, uint256 relockable,,) = AURA_LOCKER.lockedBalances(address(SAFE));
+        if (relockable > 0) {
             return (true, abi.encodeWithSelector(AURA_LOCKER.processExpiredLocks.selector, true));
+        }
+
+        uint256 auraBalance = AURA.balanceOf(address(SAFE));
+        if (auraBalance > 0) {
+            return (true, abi.encodeWithSelector(AURA_LOCKER.lock.selector, address(SAFE), auraBalance));
         }
 
         return (false, bytes("No AURA tokens unlocked"));
@@ -107,25 +111,39 @@ contract AuraLockerModule is
 
     /// @notice The actual execution of the action determined by the `checkUpkeep` method (AURA locking)
     function performUpkeep(bytes calldata /* _performData */ ) external override onlyKeeper {
-        if (!_isModuleEnabled()) revert ModuleNotEnabled();
+        if (!SAFE.isModuleEnabled(address(this))) revert ModuleNotEnabled();
 
-        (, uint256 unlockable,,) = AURA_LOCKER.lockedBalances(address(SAFE));
-        if (unlockable == 0) revert NothingToLock(block.timestamp);
+        (, uint256 relockable,,) = AURA_LOCKER.lockedBalances(address(SAFE));
+        uint256 auraBalance = AURA.balanceOf(address(SAFE));
+        if (relockable > 0) {
+            // execute: `processExpiredLocks` via module
+            if (
+                !SAFE.execTransactionFromModule(
+                    address(AURA_LOCKER), 0, abi.encodeCall(ILockAura.processExpiredLocks, true), ISafe.Operation.Call
+                )
+            ) revert TxFromModuleFailed();
+        } else if (auraBalance > 0) {
+            // execute: `approve` via module
+            if (
+                !SAFE.execTransactionFromModule(
+                    address(AURA),
+                    0,
+                    abi.encodeCall(IERC20.approve, (address(AURA_LOCKER), auraBalance)),
+                    ISafe.Operation.Call
+                )
+            ) revert TxFromModuleFailed();
 
-        // execute: `processExpiredLocks` via module
-        if (
-            !SAFE.execTransactionFromModule(
-                address(AURA_LOCKER), 0, abi.encodeCall(ILockAura.processExpiredLocks, true), IGnosisSafe.Operation.Call
-            )
-        ) revert TxFromModuleFailed();
-    }
-
-    /// @dev The Gnosis Safe v1.1.1 does not yet have the `isModuleEnabled` method, so we need a workaround
-    function _isModuleEnabled() internal view returns (bool) {
-        address[] memory modules = SAFE.getModules();
-        for (uint256 i = 0; i < modules.length; i++) {
-            if (modules[i] == address(this)) return true;
+            // execute: `lock` via module
+            if (
+                !SAFE.execTransactionFromModule(
+                    address(AURA_LOCKER),
+                    0,
+                    abi.encodeCall(ILockAura.lock, (address(SAFE), auraBalance)),
+                    ISafe.Operation.Call
+                )
+            ) revert TxFromModuleFailed();
+        } else {
+            revert NothingToLock(block.timestamp);
         }
-        return false;
     }
 }
