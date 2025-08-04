@@ -8,7 +8,7 @@ import {IERC20} from "@openzeppelin/token/ERC20/IERC20.sol";
 import {IKeeperRegistryMaster} from "@chainlink/automation/interfaces/v2_1/IKeeperRegistryMaster.sol";
 import {IKeeperRegistrar} from "../src/interfaces/chainlink/IKeeperRegistrar.sol";
 
-import {IGnosisSafe} from "../src/interfaces/gnosis/IGnosisSafe.sol";
+import {ISafe} from "../src/interfaces/gnosis/ISafe.sol";
 import {ILockAura} from "../src/interfaces/aura/ILockAura.sol";
 
 import {AuraLockerModule} from "../src/AuraLockerModule.sol";
@@ -18,7 +18,7 @@ contract BaseFixture is Test {
     // https://debank.com/profile/0x9ff471F9f98F42E5151C7855fD1b5aa906b1AF7e
     address constant BALANCER_ADMIN_CHAINLINK_UPKEEPS = 0x9ff471F9f98F42E5151C7855fD1b5aa906b1AF7e;
 
-    IGnosisSafe public constant SAFE = IGnosisSafe(payable(0x10A19e7eE7d7F8a52822f6817de8ea18204F2e4f));
+    ISafe public constant SAFE = ISafe(payable(0x9a5BDF08a6969A4bDb7724beE3c6d8964BDc0B28));
 
     // https://docs.chain.link/resources/link-token-contracts?parent=automation#ethereum-mainnet
     IERC20 constant LINK = IERC20(0x514910771AF9Ca656af840dff83E8264EcF986CA);
@@ -31,8 +31,8 @@ contract BaseFixture is Test {
     AuraLockerModule auraLockerModule;
 
     function setUp() public virtual {
-        // block @ https://etherscan.io/block/20576471
-        vm.createSelectFork("ethereum", 20576471);
+        // block @ https://etherscan.io/block/22686870
+        vm.createSelectFork("ethereum", 22686870);
 
         // deploy module
         auraLockerModule = new AuraLockerModule();
