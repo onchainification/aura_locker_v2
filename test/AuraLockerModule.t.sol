@@ -27,10 +27,7 @@ contract AuraLockerModuleTest is BaseFixture {
         // `disableModule(address prevModule, address module)`
         vm.prank(address(SAFE));
         SAFE.disableModule(address(1), address(auraLockerModule));
-        address[] memory modules = SAFE.getModules();
-        for (uint256 i = 0; i < modules.length; i++) {
-            if (modules[i] == address(auraLockerModule)) assertFalse(true);
-        }
+        assertFalse(SAFE.isModuleEnabled(address(auraLockerModule)));
 
         // once module is removed, the keeper trying to call `performUpkeep` should revert
         vm.prank(auraLockerModule.keeper());
