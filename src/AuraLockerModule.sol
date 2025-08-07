@@ -111,21 +111,24 @@ contract AuraLockerModule is
 
     /// @notice The actual execution of the action determined by the `checkUpkeep` method (AURA locking)
     function performUpkeep(bytes calldata /* _performData */ ) external override onlyKeeper {
+        // Check if the module is enabled
         if (SAFE.isModuleEnabled(address(this)) == false) {
             revert ModuleNotEnabled();
         }
 
+        // Relock expired locks if there are any
         (, uint256 relockable,,) = AURA_LOCKER.lockedBalances(address(SAFE));
         if (relockable > 0) {
             // execute: `processExpiredLocks` via module
-            bool processExpiredLocksSucceded = SAFE.execTransactionFromModule(
+            bool processExpiredLocksSucceeded = SAFE.execTransactionFromModule(
                 address(AURA_LOCKER), 0, abi.encodeCall(ILockAura.processExpiredLocks, true), ISafe.Operation.Call
-            )
-            if (processExpiredLocksSucceded == false) {
+            );
+            if (processExpiredLocksSucceeded == false) {
                 revert TxFromModuleFailed();
             }
         }
 
+        // Lock AURA tokens if there are any
         uint256 auraBalance = AURA.balanceOf(address(SAFE));
         if (auraBalance > 0) {
             // execute: `approve` via module
@@ -134,7 +137,7 @@ contract AuraLockerModule is
                 0,
                 abi.encodeCall(IERC20.approve, (address(AURA_LOCKER), auraBalance)),
                 ISafe.Operation.Call
-            ) 
+            );
             if (approveCallSucceeded == false) {
                 revert TxFromModuleFailed();
             }
@@ -144,12 +147,12 @@ contract AuraLockerModule is
                 0,
                 abi.encodeCall(ILockAura.lock, (address(SAFE), auraBalance)),
                 ISafe.Operation.Call
-            )
+            );
             if (lockCallSucceeded == false) {
                 revert TxFromModuleFailed();
             }
         }
-        
+
         if (relockable == 0 && auraBalance == 0) {
             revert NothingToLock(block.timestamp);
         }
