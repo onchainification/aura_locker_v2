@@ -72,7 +72,7 @@ contract BaseFixture is Test {
         vm.label(address(AURA_LOCKER), "AURA_LOCKER");
         vm.label(address(auraLockerModule), "AURA_LOCKER_MODULE");
         vm.label(BALANCER_ADMIN_CHAINLINK_UPKEEPS, "BALANCER_ADMIN_CHAINLINK_UPKEEPS");
-        vm.label(address(SAFE), "BALANCER_MULTISIG");
+        vm.label(address(SAFE), "BALANCER_GOV_SAFE");
         vm.label(address(CL_REGISTRY), "CL_REGISTRY");
         vm.label(address(CL_REGISTRAR), "CL_REGISTRAR");
     }

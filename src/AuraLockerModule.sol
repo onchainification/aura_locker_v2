@@ -66,7 +66,7 @@ contract AuraLockerModule is
 
     /// @notice Enforce that the function is called by governance only
     modifier onlyGovernance() {
-        if (msg.sender != BALANCER_MULTISIG) revert NotGovernance(msg.sender);
+        if (msg.sender != BALANCER_GOV_SAFE) revert NotGovernance(msg.sender);
         _;
     }
 
