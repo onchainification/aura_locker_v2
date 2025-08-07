@@ -17,8 +17,8 @@ contract AuraLockerModule is
     /*//////////////////////////////////////////////////////////////////////////
                                    CONSTANTS
     //////////////////////////////////////////////////////////////////////////*/
-    address public constant BALANCER_MULTISIG = 0x9a5BDF08a6969A4bDb7724beE3c6d8964BDc0B28;
-    ISafe public constant SAFE = ISafe(payable(BALANCER_MULTISIG));
+    address public constant BALANCER_GOV_SAFE = 0x9a5BDF08a6969A4bDb7724beE3c6d8964BDc0B28;
+    ISafe public constant SAFE = ISafe(payable(BALANCER_GOV_SAFE));
 
     IERC20 public constant AURA = IERC20(0xC0c293ce456fF0ED870ADd98a0828Dd4d2903DBF);
 
