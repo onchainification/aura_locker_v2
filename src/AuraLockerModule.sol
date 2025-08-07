@@ -111,38 +111,46 @@ contract AuraLockerModule is
 
     /// @notice The actual execution of the action determined by the `checkUpkeep` method (AURA locking)
     function performUpkeep(bytes calldata /* _performData */ ) external override onlyKeeper {
-        if (!SAFE.isModuleEnabled(address(this))) revert ModuleNotEnabled();
+        if (SAFE.isModuleEnabled(address(this)) == false) {
+            revert ModuleNotEnabled();
+        }
 
         (, uint256 relockable,,) = AURA_LOCKER.lockedBalances(address(SAFE));
-        uint256 auraBalance = AURA.balanceOf(address(SAFE));
         if (relockable > 0) {
             // execute: `processExpiredLocks` via module
-            if (
-                !SAFE.execTransactionFromModule(
-                    address(AURA_LOCKER), 0, abi.encodeCall(ILockAura.processExpiredLocks, true), ISafe.Operation.Call
-                )
-            ) revert TxFromModuleFailed();
-        } else if (auraBalance > 0) {
-            // execute: `approve` via module
-            if (
-                !SAFE.execTransactionFromModule(
-                    address(AURA),
-                    0,
-                    abi.encodeCall(IERC20.approve, (address(AURA_LOCKER), auraBalance)),
-                    ISafe.Operation.Call
-                )
-            ) revert TxFromModuleFailed();
+            bool processExpiredLocksSucceded = SAFE.execTransactionFromModule(
+                address(AURA_LOCKER), 0, abi.encodeCall(ILockAura.processExpiredLocks, true), ISafe.Operation.Call
+            )
+            if (processExpiredLocksSucceded == false) {
+                revert TxFromModuleFailed();
+            }
+        }
 
+        uint256 auraBalance = AURA.balanceOf(address(SAFE));
+        if (auraBalance > 0) {
+            // execute: `approve` via module
+            bool approveCallSucceeded = SAFE.execTransactionFromModule(
+                address(AURA),
+                0,
+                abi.encodeCall(IERC20.approve, (address(AURA_LOCKER), auraBalance)),
+                ISafe.Operation.Call
+            ) 
+            if (approveCallSucceeded == false) {
+                revert TxFromModuleFailed();
+            }
             // execute: `lock` via module
-            if (
-                !SAFE.execTransactionFromModule(
-                    address(AURA_LOCKER),
-                    0,
-                    abi.encodeCall(ILockAura.lock, (address(SAFE), auraBalance)),
-                    ISafe.Operation.Call
-                )
-            ) revert TxFromModuleFailed();
-        } else {
+            bool lockCallSucceeded = SAFE.execTransactionFromModule(
+                address(AURA_LOCKER),
+                0,
+                abi.encodeCall(ILockAura.lock, (address(SAFE), auraBalance)),
+                ISafe.Operation.Call
+            )
+            if (lockCallSucceeded == false) {
+                revert TxFromModuleFailed();
+            }
+        }
+        
+        if (relockable == 0 && auraBalance == 0) {
             revert NothingToLock(block.timestamp);
         }
     }
