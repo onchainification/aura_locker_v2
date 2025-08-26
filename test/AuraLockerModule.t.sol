@@ -121,4 +121,57 @@ contract AuraLockerModuleTest is BaseFixture {
         // Verify safe no longer has AURA
         assertEq(aura.balanceOf(address(SAFE)), 0, "Safe should have 0 AURA after locking");
     }
+
+    function test_checkUpkeep_when_LocksExpiringSoon() public {
+        // skip forward to get closer to lock expiry
+        // existing lock expires around week 16 from the fork block
+        // we want to test the early trigger (within 1 week of expiry)
+        skip(10 weeks);
+
+        // check current state
+        (, uint256 relockable,, ILockAura.LockedBalance[] memory lockData) = AURA_LOCKER.lockedBalances(address(SAFE));
+
+        // ensure we have locks that are not expired yet
+        assertEq(relockable, 0, "Should have no expired locks at this point");
+        assertGt(lockData.length, 0, "Should have active locks");
+
+        // check that the module detects locks expiring within 1 week
+        (bool requiresLocking, bytes memory execPayload) = auraLockerModule.checkUpkeep(bytes(""));
+
+        // verify the unlock time is within 1 week
+        uint256 timeUntilUnlock = lockData[0].unlockTime - block.timestamp;
+        if (timeUntilUnlock <= 1 weeks) {
+            assertTrue(requiresLocking, "Should require locking when locks expire within 1 week");
+            assertEq(execPayload, abi.encodeWithSelector(AURA_LOCKER.processExpiredLocks.selector, true));
+        } else {
+            assertFalse(requiresLocking, "Should not require locking when locks don't expire within 1 week");
+        }
+    }
+
+    function testPerformUpkeep_when_LocksExpiringSoon() public {
+        // skip to a point where locks will expire within 1 week but have not expired yet
+        skip(10 weeks);
+
+        // check current state
+        (, uint256 relockable,, ILockAura.LockedBalance[] memory lockData) = AURA_LOCKER.lockedBalances(address(SAFE));
+        assertEq(relockable, 0, "Should have no expired locks");
+        assertGt(lockData.length, 0, "Should have active locks");
+
+        uint256 timeUntilUnlock = lockData[0].unlockTime - block.timestamp;
+
+        // only test if locks are expiring within 1 week
+        if (timeUntilUnlock <= 1 weeks) {
+            // get the locked balance before
+            (uint256 totalBefore,, uint256 lockedBefore,) = AURA_LOCKER.lockedBalances(address(SAFE));
+
+            // perform upkeep
+            vm.prank(auraLockerModule.keeper());
+            auraLockerModule.performUpkeep(bytes(""));
+
+            // after performUpkeep, total and locked balances should still be the same
+            (uint256 totalAfter,, uint256 lockedAfter,) = AURA_LOCKER.lockedBalances(address(SAFE));
+            assertEq(totalAfter, totalBefore, "Total AURA should remain the same");
+            assertEq(lockedAfter, lockedBefore, "Locked amount should remain the same");
+        }
+    }
 }

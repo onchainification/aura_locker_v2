@@ -96,9 +96,20 @@ contract AuraLockerModule is
     {
         if (!SAFE.isModuleEnabled(address(this))) return (false, bytes("AuraLocker module is not enabled"));
 
-        (, uint256 relockable,,) = AURA_LOCKER.lockedBalances(address(SAFE));
+        (, uint256 relockable,, ILockAura.LockedBalance[] memory lockData) = AURA_LOCKER.lockedBalances(address(SAFE));
         if (relockable > 0) {
             return (true, abi.encodeWithSelector(AURA_LOCKER.processExpiredLocks.selector, true));
+        }
+
+        // Check if any locks are expiring within the next week
+        uint256 len = lockData.length;
+        if (len > 0) {
+            uint256 timestamp = block.timestamp;
+            for (uint256 i = 0; i < len; i++) {
+                if (timestamp + 1 weeks >= lockData[i].unlockTime) {
+                    return (true, abi.encodeWithSelector(AURA_LOCKER.processExpiredLocks.selector, true));
+                }
+            }
         }
 
         uint256 auraBalance = AURA.balanceOf(address(SAFE));
@@ -116,9 +127,22 @@ contract AuraLockerModule is
             revert ModuleNotEnabled();
         }
 
-        // Relock expired locks if there are any
-        (, uint256 relockable,,) = AURA_LOCKER.lockedBalances(address(SAFE));
-        if (relockable > 0) {
+        // Check if there are any expired locks
+        (, uint256 relockable,, ILockAura.LockedBalance[] memory lockData) = AURA_LOCKER.lockedBalances(address(SAFE));
+        bool shouldRelock = relockable > 0;
+
+        // Check if there are locks expiring soon
+        if (!shouldRelock && lockData.length > 0) {
+            uint256 timestamp = block.timestamp;
+            for (uint256 i = 0; i < lockData.length; i++) {
+                if (timestamp + 1 weeks >= lockData[i].unlockTime) {
+                    shouldRelock = true;
+                    break;
+                }
+            }
+        }
+
+        if (shouldRelock) {
             // execute: `processExpiredLocks` via module
             bool processExpiredLocksSucceeded = SAFE.execTransactionFromModule(
                 address(AURA_LOCKER), 0, abi.encodeCall(ILockAura.processExpiredLocks, true), ISafe.Operation.Call
@@ -153,7 +177,7 @@ contract AuraLockerModule is
             }
         }
 
-        if (relockable == 0 && auraBalance == 0) {
+        if (!shouldRelock && auraBalance == 0) {
             revert NothingToLock(block.timestamp);
         }
     }
